@@ -41,9 +41,17 @@ typedef struct {
   uint8_t state;
   uint8_t last_button;
 } Sabomota_t;
-Sabomota_t servo1 = {{0,0},0,0};
-Sabomota_t servo2 = {{0,0},0,0};
-Sabomota_t servo3 = {{0,0},0,0};
+
+Sabomota_t servo1 = {{25,120},0,0}; //最小25、最大120
+Sabomota_t servo2 = {{25,120},0,0};
+Sabomota_t servo3 = {{80,120},0,0};
+
+//受信用の変数
+volatile uint8_t sequence_cmd = 0;
+volatile uint8_t sequence_start = 0;
+
+volatile uint32_t sequence_timer = 0;
+volatile uint8_t sequence_state = 0;
 
 /* USER CODE END PD */
 
@@ -80,46 +88,11 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
       printf("fdcan_getrxmessage is error\r\n");
       Error_Handler();
     }
-    if (RxHeader.Identifier == 0xab) {
-      //ここまで動作確認済み　can通信はできている
-      uint8_t L1 = ((RxData[7] & (1 << 4))>>4) ? 1 : 0;  //ここまちがっているかも 
-      if (L1) {     //1回目押すときlast_buttonは0、よってL1 && !servo1.last_buttonは条件式を満たす
-          __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo1.step[1]);     //2回目押すときは!servo1.last_buttonが条件式を満たさない
-      } 
-      else {                     //ここは主同期
-              __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo1.step[0]);
-      } 
-      
-      uint8_t  R1= ((RxData[7] & (1 << 5))>>5) ? 1 : 0;
-      // uint8_t last_R1 = 0;
-      // uint8_t zerocount2 = 0;
-
-      // if (R1 == 1) {
-      // last_R1 = 1;
-      // zerocount2 = 0;
-      // } else {
-      // zerocount2++;   //チャタリング対策　必要ではなかった。R2はちゃんと動くわけではない
-      // if (zerocount2 > 5) {
-      // last_R1 = 0;
-      // zerocount2 = 0;
-      // }
-      // }  もしチャタリングして動かすんだったら下の行if(last_R1)
-      if (R1) {     //1回目押すときlast_buttonは0、よってL1 && !servo1.last_buttonは条件式を満たす
-          __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[0]);     //2回目押すときは!servo1.last_buttonが条件式を満たさない
-        } 
-      else {                     //ここは主同期
-              __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[1]);
-      }
-    }
-    if (RxHeader.Identifier == 0x020){  
+   
+    if (RxHeader.Identifier == 0x206){  
       // printf("%d\n",RxData[0]);
-      if(RxData[0]){
-        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[1]);
-      }                              //ここは自動機なのでボタンではない。
-      else{                          //rxData[0]==1の時動く
-        // printf("b\n");
-        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[0]);
-      }
+      sequence_cmd = RxData[0];
+      sequence_start = 1;
     } 
   }
 }
@@ -206,19 +179,70 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   FDCAN_RxTxSettings();
-  HAL_TIM_PWM_start(&htim2, TIM_CHANNEL_1);
-  HAL_TIM_PWM_start(&htim2, TIM_CHANNEL_2);
-  HAL_TIM_PWM_start(&htim2, TIM_CHANNEL_3);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+
+  HAL_Delay(50);
+
+  //サーボの初期位置
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo1.step[0]);
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[0]);
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[0]);
+
+  HAL_Delay(500);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
+  while(1)
   {
+    if(sequence_start){
+        sequence_start = 0;
+        
+        if(sequence_cmd){
+          sequence_state = 1;
+        }
+        else{
+          sequence_state = 10;
+        }
+    }
+
+    switch(sequence_state){
+        case 1:
+          __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo1.step[1]);
+          __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[1]);
+          sequence_timer = HAL_GetTick();
+          sequence_state = 2;
+          break;
+
+        case 2:
+          if(HAL_GetTick() - sequence_timer >= 500){
+            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[1]);
+            sequence_state = 0;
+          }
+          break;
+
+        case 10:
+          __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[0]);
+          sequence_timer = HAL_GetTick();
+          sequence_state = 11;
+          break;
+        
+        case 11:
+          if(HAL_GetTick() - sequence_timer >= 500){
+            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo1.step[0]);
+            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[0]);
+            sequence_state = 0;
+          }
+          break;
+      
+      
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
   }
   /* USER CODE END 3 */
 }
