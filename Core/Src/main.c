@@ -42,9 +42,9 @@ typedef struct {
   uint8_t last_button;
 } Sabomota_t;
 
-Sabomota_t servo1 = {{25,120},0,0}; //最小25、最大120
-Sabomota_t servo2 = {{25,120},0,0};
-Sabomota_t servo3 = {{80,120},0,0};
+Sabomota_t servo1 = {{25,80},0,0}; //最小25、最大120
+Sabomota_t servo2 = {{50,100},0,0};
+Sabomota_t servo3 = {{125,80},0,0};
 
 //受信用の変数
 volatile uint8_t sequence_cmd = 0;
@@ -139,11 +139,11 @@ void FDCAN_RxTxSettings(void){
 }
 
 // for printf()
-int _write(int file, char *ptr, int len)
-{
-    HAL_UART_Transmit(&huart2,(uint8_t *)ptr,len,10);
-    return len;
-}
+// int _write(int file, char *ptr, int len)
+// {
+//     HAL_UART_Transmit(&huart2,(uint8_t *)ptr,len,10);
+//     return len;
+// }
 /* USER CODE END 0 */
 
 /**
@@ -183,7 +183,7 @@ int main(void)
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
 
-  HAL_Delay(50);
+  HAL_Delay(5000);
 
   //サーボの初期位置
   __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo1.step[0]);
@@ -191,6 +191,8 @@ int main(void)
   __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[0]);
 
   HAL_Delay(500);
+
+  sequence_state = 1;
 
   /* USER CODE END 2 */
 
@@ -212,20 +214,20 @@ int main(void)
     switch(sequence_state){
         case 1:
           __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo1.step[1]);
-          __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[1]);
+          __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[1]);
           sequence_timer = HAL_GetTick();
           sequence_state = 2;
           break;
 
         case 2:
-          if(HAL_GetTick() - sequence_timer >= 500){
-            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[1]);
-            sequence_state = 0;
+          if(HAL_GetTick() - sequence_timer >= 7000){
+            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[1]);
+            sequence_state = 10;
           }
           break;
 
         case 10:
-          __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[0]);
+          __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[0]);
           sequence_timer = HAL_GetTick();
           sequence_state = 11;
           break;
@@ -233,7 +235,7 @@ int main(void)
         case 11:
           if(HAL_GetTick() - sequence_timer >= 500){
             __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo1.step[0]);
-            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[0]);
+            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[0]);
             sequence_state = 0;
           }
           break;
@@ -351,21 +353,21 @@ static void MX_TIM2_Init(void)
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
-  
+
   /* USER CODE BEGIN TIM2_Init 1 */
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 799;
+  htim2.Init.Prescaler = 1599;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 1999;
+  htim2.Init.Period = 999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
   }
-   sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
   if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
   {
     Error_Handler();
@@ -388,16 +390,15 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_TIMING;
-  if (HAL_TIM_OC_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
   }
-  if (HAL_TIM_OC_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
   {
     Error_Handler();
   }
-  if (HAL_TIM_OC_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
   }
