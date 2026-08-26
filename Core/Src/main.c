@@ -43,7 +43,7 @@ typedef struct {
 } Sabomota_t;
 
 Sabomota_t servo1 = {{25,80},0,0}; //最小25、最大120
-Sabomota_t servo2 = {{50,100},0,0};
+Sabomota_t servo2 = {{65,30},0,0};
 Sabomota_t servo3 = {{125,80},0,0};
 
 //受信用の変数
@@ -183,7 +183,7 @@ int main(void)
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
 
-  HAL_Delay(5000);
+  HAL_Delay(2000);
 
   //サーボの初期位置
   __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo1.step[0]);
@@ -192,7 +192,6 @@ int main(void)
 
   HAL_Delay(500);
 
-  sequence_state = 1;
 
   /* USER CODE END 2 */
 
@@ -220,20 +219,21 @@ int main(void)
           break;
 
         case 2:
-          if(HAL_GetTick() - sequence_timer >= 7000){
+          if(HAL_GetTick() - sequence_timer >= 500){
             __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[1]);
-            sequence_state = 10;
+            sequence_state = 0;
           }
           break;
+        
 
         case 10:
-          __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[0]);
-          sequence_timer = HAL_GetTick();
-          sequence_state = 11;
-          break;
+           __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[0]);
+           sequence_timer = HAL_GetTick();
+           sequence_state = 11;
+           break;
         
         case 11:
-          if(HAL_GetTick() - sequence_timer >= 500){
+          if(HAL_GetTick() - sequence_timer >=2000){
             __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo1.step[0]);
             __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[0]);
             sequence_state = 0;
