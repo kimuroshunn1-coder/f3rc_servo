@@ -65,6 +65,8 @@ FDCAN_HandleTypeDef hfdcan1;
 
 TIM_HandleTypeDef htim2;
 
+UART_HandleTypeDef huart2;
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -74,6 +76,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -88,6 +91,10 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
       printf("fdcan_getrxmessage is error\r\n");
       Error_Handler();
     }
+
+    printf("RX ID=0x%03lX DATA0=%d\r\n",
+    RxHeader.Identifier,
+    RxData[0]);
    
     if (RxHeader.Identifier == 0x206){  
       // printf("%d\n",RxData[0]);
@@ -177,6 +184,7 @@ int main(void)
   MX_GPIO_Init();
   MX_FDCAN1_Init();
   MX_TIM2_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   FDCAN_RxTxSettings();
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
@@ -191,7 +199,6 @@ int main(void)
   __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[0]);
 
   HAL_Delay(500);
-  sequence_state = 1;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -220,16 +227,10 @@ int main(void)
         case 2:
           if(HAL_GetTick() - sequence_timer >= 500){
             __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[1]);
-            sequence_state = 9;
+            sequence_state = 0;
           }
           break;
-        
-        case 9:
-         if(HAL_GetTick() - sequence_timer >= 3000){
-            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[1]);
-            sequence_state = 10;
-          }
-          break;
+
 
         case 10:
            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[0]);
@@ -244,7 +245,6 @@ int main(void)
             sequence_state = 0;
           }
           break;
-      
       
     }
     /* USER CODE END WHILE */
@@ -411,6 +411,54 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 2 */
   HAL_TIM_MspPostInit(&htim2);
+
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart2.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart2, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart2, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
 
 }
 
