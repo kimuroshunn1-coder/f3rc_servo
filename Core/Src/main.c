@@ -191,8 +191,7 @@ int main(void)
   __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, servo3.step[0]);
 
   HAL_Delay(500);
-  
-
+  sequence_state = 1;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -221,10 +220,16 @@ int main(void)
         case 2:
           if(HAL_GetTick() - sequence_timer >= 500){
             __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[1]);
-            sequence_state = 0;
+            sequence_state = 9;
           }
           break;
         
+        case 9:
+         if(HAL_GetTick() - sequence_timer >= 3000){
+            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[1]);
+            sequence_state = 10;
+          }
+          break;
 
         case 10:
            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo2.step[0]);
